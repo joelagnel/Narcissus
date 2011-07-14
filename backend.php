@@ -6,18 +6,46 @@
 
 
 $base_pkg_set = " task-base angstrom-version ";
+$debug_log = "out.log";
+$web_log = "web.log";
+
+/* Some wrappers to send command output and server output to a log file (useful for debug) */
+
+function echo_msg($msg) {
+	global $web_log;
+	print $msg;
+	$fh = fopen($web_log, 'a');
+	fwrite($fh, "--------------------------\n");
+	fwrite($fh, $msg."\n");
+	fwrite($fh, "--------------------------\n");
+	fclose($fh);
+}
+
+function passthro($cmd, &$retval) {
+	global $debug_log;
+	exec($cmd, $out, $retval);
+	$out_str = join($out, '');
+	print($out_str);
+	$fh = fopen($debug_log, 'a');
+	fwrite($fh, "--------------------------\n");
+	fwrite($fh, $cmd."\n");
+	fwrite($fh, "--------------------------\n");
+	fwrite($fh, join($out,"\n")."\n");
+	fwrite($fh, "--------------------------\n");
+	fclose($fh);
+}
 
 if (isset($_POST["action"]) && $_POST["action"] != "") {
 	$action = $_POST["action"];
 } else {
-	print "Invalid action: $action";
+	echo_msg("Invalid action: $action");
 	exit;
 }
 
 if (isset($_POST["machine"])) {
 	$machine = escapeshellcmd(basename($_POST["machine"]));
 } else {
-	print "Invalid machine";
+	echo_msg("Invalid machine");
 	exit;
 }
 
@@ -80,18 +108,18 @@ switch($imagetype) {
 
 switch($action) {
 	case "assemble_image":
-		print "assembling\n";
+		echo_msg("assembling\n");
 		assemble_image($machine, $name, $imagetype, $manifest, $sdk, $sdkarch);
 		break;
 	case "configure_image":
-		print "configuring\n";
+		echo_msg("configuring\n");
 		configure_image($machine, $name, $release);
 		break;
 	case "show_image_link":
 		show_image_link($machine, $name, $imagesuffix, $manifest, $sdk, $sdkarch);
 		break;
 	case "install_package":
-		print "installing $pkg\n";
+		echo_msg("installing $pkg\n");
 		install_package($machine, $name, $pkg);
 		break;
 }
@@ -121,7 +149,7 @@ function show_image_link($machine, $name, $imagesuffix, $manifest, $sdk, $sdkarc
 	mkdir($deploydir,0777,TRUE);
 	
 	$imagefiles = scandir("work/$machine");
-	print "<br/>";
+	echo_msg("<br/>");
 	foreach($imagefiles as $value) {
 		$location = "work/$machine/$value";
 		// The !== operator must be used.  Using != would not work as expected
@@ -163,32 +191,33 @@ function show_image_link($machine, $name, $imagesuffix, $manifest, $sdk, $sdkarc
 }	
 	
 	if ($foundimage == 0) {
-		print "Image not found, something went wrong :/";
+		echo_msg("Image not found, something went wrong :/");
 	} else {
-		print("$imagestring");
+		echo_msg("$imagestring");
 	}
 	
 	if($foundsdimage == 1) {
-		print(" <br/><br/> The raw SD card image(s) below have the intended size for the SD card is encoded in the file name, e.g. 1GiB for a one gigabyte card.<br/><br/> $printstring");
+		echo_msg(" <br/><br/> The raw SD card image(s) below have the intended size for the SD card is encoded in the file name, e.g. 1GiB for a one gigabyte card.<br/><br/> $echo_msgstring");
 	}
 	
 }
 
+
 function configure_image($machine, $name, $release) {
-	print "Machine: $machine, name: $name\n";
-	passthru ("scripts/configure-image.sh $machine $name-image $release && exit");
+	echo_msg("Machine: $machine, name: $name\n");
+	passthro ("scripts/configure-image.sh $machine $name-image $release && exit");
 }
 
 function install_package($machine, $name, $pkg) {
-	print "Machine: $machine, name: $name, pkg: $pkg\n";
-	passthru ("scripts/install-package.sh $machine $name-image $pkg && exit", $installretval);
-	print "<div id=\"retval\">$installretval</div>";
+	echo_msg("Machine: $machine, name: $name, pkg: $pkg\n");
+	passthro ("scripts/install-package.sh $machine $name-image $pkg && exit", $installretval);
+	echo_msg("<div id=\"retval\">$installretval</div>");
 }
 
 function assemble_image($machine, $name, $imagetype, $manifest, $sdk, $sdkarch) {
-	print "Machine: $machine, name: $name, type: $imagetype\n";
-	passthru ("scripts/assemble-image.sh $machine $name-image $imagetype $manifest $sdk $sdkarch && exit", $installretval);
-	print "<div id=\"retval-image\">$installretval</div>";
+	echo_msg("Machine: $machine, name: $name, type: $imagetype\n");
+	passthro ("scripts/assemble-image.sh $machine $name-image $imagetype $manifest $sdk $sdkarch && exit", $installretval);
+	echo_msg("<div id=\"retval-image\">$installretval</div>");
 }
 
 
